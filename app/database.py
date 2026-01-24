@@ -7,7 +7,7 @@ load_dotenv()
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "mysql+pymysql://root:password@localhost:3306/airline_db"
+    "postgresql+psycopg2://postgres:password@localhost:5432/airline_db"
 )
 
 engine = create_engine(DATABASE_URL, echo=True)
