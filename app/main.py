@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile
+from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile, Body
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,19 +22,7 @@ load_dotenv()
 # -------------------------------------------------
 from database import get_db, engine, Base
 from models import User, UserRole, ActivityLog
-from schemas import (
-    UserCreate,
-    UserLogin,
-    UserResponse,
-    UserUpdate,
-    PasswordReset,
-    PasswordResetConfirm,
-    EmailVerification,
-)
-from email_service import (
-    send_verification_email,
-    send_password_reset_email,
-)
+from schemas import UserCreate, UserResponse, UserLogin
 
 # -------------------------------------------------
 # Create database tables
@@ -51,27 +39,22 @@ app = FastAPI(
 )
 
 # -------------------------------------------------
-# CORS CONFIGURATION (RENDER SAFE)
+# CORS CONFIGURATION
 # -------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://airline-frontend-rjej.onrender.com"
-    ],
+    allow_origins=["https://airline-frontend-rjej.onrender.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # -------------------------------------------------
-# Static files (safe for Render)
+# Static files
 # -------------------------------------------------
 if os.path.exists("static"):
     app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# -------------------------------------------------
-# Upload directory
-# -------------------------------------------------
 UPLOAD_DIR = Path("static/uploads/profiles")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -102,9 +85,7 @@ def create_access_token(
     expires_delta: Optional[timedelta] = None
 ) -> str:
     to_encode = data.copy()
-    expire = datetime.utcnow() + (
-        expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    )
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -165,10 +146,44 @@ async def health_check():
     }
 
 # -------------------------------------------------
-# NOTE:
-# All your existing auth, profile, activity,
-# admin, upload, and other routes remain unchanged.
+# USER REGISTRATION
 # -------------------------------------------------
+@app.post("/api/register", response_model=UserResponse)
+def register_user(user: UserCreate, db: Session = Depends(get_db)):
+    existing = db.query(User).filter(User.email == user.email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    hashed = get_password_hash(user.password)
+    new_user = User(
+        email=user.email,
+        full_name=user.full_name,
+        password=hashed,
+        role=UserRole.USER,
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    # Optional: send verification email
+    # send_verification_email(new_user.email, generate_token())
+
+    log_activity(db, new_user.id, "register", f"User {new_user.email} registered")
+
+    return new_user
+
+# -------------------------------------------------
+# USER LOGIN
+# -------------------------------------------------
+@app.post("/api/login")
+def login_user(user: UserLogin, db: Session = Depends(get_db)):
+    db_user = db.query(User).filter(User.email == user.email).first()
+    if not db_user or not verify_password(user.password, db_user.password):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    token = create_access_token({"sub": db_user.email})
+    log_activity(db, db_user.id, "login", f"User {db_user.email} logged in")
+    return {"access_token": token, "token_type": "bearer"}
 
 # -------------------------------------------------
 # Uvicorn (Render compatible)
@@ -176,7 +191,8 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
-        app,
+        "main:app",
         host="0.0.0.0",
         port=int(os.environ.get("PORT", 8000)),
+        reload=True
     )
