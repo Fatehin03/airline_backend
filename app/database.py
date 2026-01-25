@@ -1,38 +1,48 @@
-# FILE: database.py (PostgreSQL – Render)
+# FILE: database.py
+# PostgreSQL configuration for Render deployment
 
 import os
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, declarative_base
 from dotenv import load_dotenv
 
-# Load environment variables from .env
+# -------------------------------------------------
+# Load environment variables
+# -------------------------------------------------
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not DATABASE_URL:
-    raise ValueError("DATABASE_URL is not set in environment variables")
+    raise RuntimeError("DATABASE_URL is not set in environment variables")
 
-# Create engine
+# -------------------------------------------------
+# SQLAlchemy Engine
+# -------------------------------------------------
 engine = create_engine(
     DATABASE_URL,
-    pool_pre_ping=True,
-    pool_recycle=3600,
-    echo=True  # Set to False in production
+    pool_pre_ping=True,     # Prevent stale connections
+    pool_recycle=300,       # Render-friendly connection recycling
+    echo=False              # MUST be False in production
 )
 
-# Create SessionLocal class
+# -------------------------------------------------
+# Session factory
+# -------------------------------------------------
 SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
     bind=engine
 )
 
-# Create Base class
+# -------------------------------------------------
+# Declarative base
+# -------------------------------------------------
 Base = declarative_base()
 
-# Dependency to get DB session
+# -------------------------------------------------
+# Dependency for FastAPI
+# -------------------------------------------------
 def get_db():
     db = SessionLocal()
     try:
