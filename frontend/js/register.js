@@ -1,27 +1,28 @@
 const API_BASE_URL = 'https://airline-backend-sn64.onrender.com';
 
 // ========================================
-// SKYLINK AIRLINES - REGISTRATION SCRIPT
+// SKYLINK AIRLINES - REGISTRATION SCRIPT (FIXED)
 // ========================================
 
 document.getElementById('registerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const formData = {
-        email: document.getElementById('email').value.trim(),
-        full_name: document.getElementById('fullName').value.trim(),
-        password: document.getElementById('password').value,
-        phone: document.getElementById('phone').value.trim() || null,
-        role: document.getElementById('role').value
-    };
+    const full_name = document.getElementById('full_name').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
 
-    if (formData.password.length < 6) {
-        alert('❌ Password must be at least 6 characters long!');
+    if (!full_name || full_name.length < 2) {
+        alert('❌ Please enter a valid full name!');
         return;
     }
 
-    if (formData.full_name.length < 2) {
-        alert('❌ Please enter a valid full name!');
+    if (!email) {
+        alert('❌ Please enter an email!');
+        return;
+    }
+
+    if (!password || password.length < 6) {
+        alert('❌ Password must be at least 6 characters long!');
         return;
     }
 
@@ -33,22 +34,27 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
     try {
         const response = await fetch(`${API_BASE_URL}/api/register`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData)
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                full_name: full_name,
+                email: email,
+                password: password,
+            }),
         });
 
         const data = await response.json();
 
-        if (response.ok) {
-            alert('✅ Registration successful! You can now login.');
-            window.location.href = '/login';
-        } else {
-            alert('❌ Error: ' + (data.detail || 'Registration failed.'));
-            submitBtn.disabled = false;
-            submitBtn.textContent = originalText;
+        if (!response.ok) {
+            throw new Error(data.detail || 'Registration failed');
         }
+
+        alert('✅ Registration successful! Please login.');
+        window.location.href = 'login.html';
+
     } catch (error) {
-        alert('❌ Network error: ' + error.message);
+        alert('❌ ' + error.message);
         submitBtn.disabled = false;
         submitBtn.textContent = originalText;
     }
