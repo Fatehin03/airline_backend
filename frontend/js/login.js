@@ -1,18 +1,16 @@
 const API_BASE_URL = 'https://airline-backend-sn64.onrender.com';
 
 // ========================================
-// SKYLINK AIRLINES - LOGIN SCRIPT
+// SKYLINK AIRLINES - LOGIN SCRIPT (FIXED)
 // ========================================
 
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const formData = {
-        email: document.getElementById('email').value.trim(),
-        password: document.getElementById('password').value
-    };
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
 
-    if (!formData.email || !formData.password) {
+    if (!email || !password) {
         alert('❌ Please fill in all fields!');
         return;
     }
@@ -25,25 +23,29 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     try {
         const response = await fetch(`${API_BASE_URL}/api/login`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData)
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email: email,
+                password: password,
+            }),
         });
 
         const data = await response.json();
 
-        if (response.ok) {
-            localStorage.setItem('access_token', data.access_token);
-            localStorage.setItem('user', JSON.stringify(data.user));
-
-            alert('✅ Login successful! Welcome back, ' + data.user.full_name + '!');
-            window.location.href = '/dashboard';
-        } else {
-            alert('❌ Error: ' + (data.detail || 'Invalid email or password'));
-            submitBtn.disabled = false;
-            submitBtn.textContent = originalText;
+        if (!response.ok) {
+            throw new Error(data.detail || 'Invalid email or password');
         }
+
+        // ✅ Backend only returns token
+        localStorage.setItem('access_token', data.access_token);
+
+        alert('✅ Login successful!');
+        window.location.href = 'dashboard.html';
+
     } catch (error) {
-        alert('❌ Network error: ' + error.message);
+        alert('❌ ' + error.message);
         submitBtn.disabled = false;
         submitBtn.textContent = originalText;
     }
