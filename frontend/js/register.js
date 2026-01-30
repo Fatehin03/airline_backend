@@ -32,7 +32,7 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
     submitBtn.textContent = 'Creating Account...';
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/register`, {
+        const response = await fetch(`${API_BASE_URL}/register`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
